@@ -118,7 +118,7 @@ This log records the specific prompts used to build "Flashcard Quizzer" with Cla
 
 **Results:** All 42 tests passed, achieving 98% coverage. Checks by `black`, `flake8`, and `mypy` all passed, demonstrating that mypy's rigorous checks are applied not only to source code but also to test code.
 
-**Lesson Learned:** Even if a tool "passes everything," it's ultimately dependent on runtime settings. Relaxing rules for a specific directory (in this case, type checking in `tests/`) can inadvertently slip that code outside the quality check network (quality gate). It's worth periodically rerunning checks with the strictest settings to see the impact of exceptions. ...was hidden, and the audit was mechanically performed against specifications rather than relying on memory.
+**Lesson Learned:** Even if a tool "passes everything," it's ultimately dependent on runtime settings. Relaxing rules for a specific directory (in this case, type checking in `tests/`) can inadvertently slip that code outside the quality check network (quality gate). It's worth periodically rerunning checks with the strictest settings to see the impact of exceptions.
 
 ---
 
