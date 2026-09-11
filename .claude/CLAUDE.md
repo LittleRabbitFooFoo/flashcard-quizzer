@@ -23,8 +23,9 @@ file and quizzes the user on them in Sequential, Random, or Adaptive mode.
 - `pytest` / `pytest-cov` for testing and coverage.
 - `black` for formatting (line length 100, see `pyproject.toml`).
 - `flake8` for linting (`setup.cfg`).
-- `mypy` for static type checking (`setup.cfg`); all functions carry type
-  hints, and `disallow_untyped_defs` is relaxed only for `tests/`.
+- `mypy` for static type checking (`setup.cfg`) with
+  `disallow_untyped_defs` on across the whole project, tests included —
+  every function, including test functions, carries type hints.
 
 ## Common Commands
 

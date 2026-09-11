@@ -218,9 +218,57 @@ is "correct code" but only one matches the intended product behavior.
 
 ---
 
+## 2026-09-12 — Rubric audit caught an unsound type assumption in the tests
+
+**Context:** Before submitting, I re-checked the finished project line by
+line against the assignment rubric rather than assuming the earlier "all
+tools pass" result meant everything was covered.
+
+**AI Tool Used:** Claude Code (Opus 5)
+
+**Prompt/Request:** "Check the output against the rubric in
+`final-final-project.txt` — verify each requirement against the actual
+files rather than from memory."
+
+**AI Response:** The audit was run as scripted checks over the AST rather
+than by eyeballing, which found four things a read-through had missed:
+16 methods in `quiz_engine.py` with no docstrings (the rubric requires
+docstrings on functions); 45 test functions with no type hints (the spec
+says *all* functions need hints); two tests whose names didn't exactly
+match the spec-mandated `test_quiz_mode_factory` and
+`test_adaptive_mode_behavior`; and no coverage report committed to the
+repo, since `htmlcov/` had been gitignored as a build artifact even though
+the submission checklist lists it as a deliverable.
+
+**Changes Made:** Added the missing docstrings; annotated every test
+function and re-enabled `disallow_untyped_defs` for `tests/` so mypy runs
+strict project-wide; added a `test_quiz_mode_factory` test asserting the
+factory returns the right class for all three names, and renamed the
+adaptive test to the spec's exact name; committed the coverage report and
+documented it in `docs/coverage_report.md`.
+
+**Reasoning:** Turning strict typing on for the tests wasn't just
+box-ticking — it immediately failed with 11 errors showing the tests were
+passing `Optional[Flashcard]` straight from `get_next_card()` into methods
+that require a non-optional `Flashcard`. The tests only passed because the
+decks happened never to be empty at those points. I added a typed
+`next_card()` helper that asserts non-None, so the assumption is now
+checked rather than merely true by luck.
+
+**Outcome:** 42 tests passing, 98% coverage, and `black`/`flake8`/`mypy`
+all clean with mypy now strict across tests as well as source.
+
+**Lessons Learned:** "The tools all pass" is only as strong as the config
+they run under — relaxing a rule for a directory (here, typing in `tests/`)
+quietly moves that code outside the quality gate. It's worth periodically
+re-running the gate at full strictness to see what the exemption was
+hiding, and auditing against the spec mechanically rather than by memory.
+
+---
+
 ## Summary Statistics
 
-- **Total AI interactions logged in detail:** 5 (plus the ongoing
+- **Total AI interactions logged in detail:** 6 (plus the ongoing
   decompose → generate → review → refine cycle described in `prompts.md`)
 - **Most helpful AI interaction:** The QuizEngine/UI decoupling — it made
   the hardest-to-test part of the app (a session loop that asks for input)

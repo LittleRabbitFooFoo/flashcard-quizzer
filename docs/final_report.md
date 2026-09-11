@@ -51,6 +51,11 @@ scoring loop testable without touching stdin/stdout.
 - [x] End-of-session summary: total questions, accuracy %, missed terms
 - [x] `--stats` flag to persist that summary as JSON for later review
 
+Five of these go well beyond the starter template's basic CRUD: the
+pluggable quiz-mode system, adaptive repetition, first-attempt scoring,
+dual-schema JSON ingestion with validation, and session statistics with
+JSON export.
+
 ## AI Collaboration Experience
 
 ### AI Tools Used
@@ -109,7 +114,7 @@ hadn't specified.
 
 ### Testing Strategy
 
-41 pytest tests across five files: `test_flashcard_loader.py` (valid and
+42 pytest tests across five files: `test_flashcard_loader.py` (valid and
 invalid JSON in both supported shapes, missing/blank fields), `test_quiz_
 modes.py` (the factory, and each mode's ordering/requeue behavior),
 `test_integration.py` (a full simulated session, an early-exit session, and

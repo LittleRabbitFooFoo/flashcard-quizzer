@@ -25,6 +25,23 @@ colored correct/incorrect feedback and an end-of-session summary.
 - End-of-session summary: total questions, accuracy %, and every term you
   missed. Pass `--stats` to also save that summary as JSON.
 
+### Features beyond basic CRUD
+
+The starter template demonstrates simple create/read/update/delete on a list.
+This project goes past that with five substantive features:
+
+1. **Pluggable quiz modes (Strategy + Factory)** — three interchangeable
+   card-selection algorithms chosen at runtime by CLI flag.
+2. **Adaptive repetition** — missed cards are requeued within the session
+   under a bounded retry budget, so weak cards are drilled harder.
+3. **First-attempt scoring** — accuracy reflects each card's first attempt,
+   so adaptive retries can't inflate the score; retried cards still drill.
+4. **Dual-schema JSON ingestion with validation** — accepts two different
+   document shapes and rejects malformed decks with user-facing messages
+   instead of tracebacks.
+5. **Session statistics and export** — end-of-session accuracy summary with
+   a missed-terms list, optionally persisted to JSON via `--stats`.
+
 ## Getting Started
 
 ### Prerequisites

@@ -6,8 +6,10 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .coverage
-htmlcov/
 stats.json
+
+# htmlcov/ is intentionally NOT ignored: the generated coverage report is a
+# required project deliverable (see docs/coverage_report.md).
 .vscode/
 .idea/
 .DS_Store

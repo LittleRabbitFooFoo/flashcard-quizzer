@@ -67,10 +67,15 @@ before/after analysis for the five most significant of these lives in
 13. "Run `black`, `flake8`, `mypy`, and `pytest --cov` across the whole
     project and fix everything that fails." — this surfaced the
     `Type[QuizMode]` factory-typing bug fixed in `docs/ai_edit_log.md`, a
-    black quote-style reformat, and a handful of missing test-file type
-    annotations (resolved by scoping `disallow_untyped_defs` to source
-    files only, since strict typing on test bodies wasn't adding value).
-14. "Manually run `python main.py -m adaptive -f data/python_basics.json`
+    black quote-style reformat, and a batch of missing type annotations in
+    the test files.
+15. "Add type hints to every test function too, and turn
+    `disallow_untyped_defs` back on for `tests/` so mypy runs strict across
+    the whole project, not just the source modules." — this surfaced a
+    genuine typing gap: the tests were passing `Optional[Flashcard]`
+    straight from `get_next_card()` into methods expecting a `Flashcard`.
+    Fixed with a typed `next_card()` helper that asserts non-None.
+16. "Manually run `python main.py -m adaptive -f data/python_basics.json`
     end-to-end, and also `-m sequential` with a wrong answer and the `exit`
     command, and a run against a missing file and a malformed JSON file —
     confirm none of these print a raw Python traceback."

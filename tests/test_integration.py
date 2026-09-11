@@ -1,6 +1,7 @@
 """End-to-end tests exercising the loader, factory, and engine together."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -9,7 +10,7 @@ from quiz_engine import QuizEngine, QuizModeFactory
 from utils.file_handler import load_flashcards
 
 
-def test_full_session(tmp_path):
+def test_full_session(tmp_path: Path) -> None:
     """Simulate a user answering 3 questions and check the final stats."""
     deck = [
         {"front": "CPU", "back": "Central Processing Unit"},
@@ -38,7 +39,7 @@ def test_full_session(tmp_path):
     assert feedback_log == [("CPU", True), ("RAM", False), ("SSD", True)]
 
 
-def test_session_stops_early_when_user_exits():
+def test_session_stops_early_when_user_exits() -> None:
     cards = [Flashcard(front="A", back="1"), Flashcard(front="B", back="2")]
     mode = QuizModeFactory.create("sequential", cards)
     engine = QuizEngine(mode)
@@ -53,7 +54,7 @@ def test_session_stops_early_when_user_exits():
     assert stats.correct == 1
 
 
-def test_full_session_with_adaptive_mode_scores_first_attempt_only():
+def test_full_session_with_adaptive_mode_scores_first_attempt_only() -> None:
     """Adaptive mode re-asks missed cards, but scoring counts first tries."""
     cards = [Flashcard(front="A", back="1"), Flashcard(front="B", back="2")]
     mode = QuizModeFactory.create("adaptive", cards)

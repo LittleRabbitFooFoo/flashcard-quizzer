@@ -1,26 +1,31 @@
 """Tests for the CLI entry point in main.py."""
 
 import json
+from pathlib import Path
 
 import pytest
 
 import main
 
 
-def _write_deck(tmp_path):
+def _write_deck(tmp_path: Path) -> str:
     deck = [{"front": "CPU", "back": "Central Processing Unit"}]
     filepath = tmp_path / "deck.json"
     filepath.write_text(json.dumps(deck), encoding="utf-8")
     return str(filepath)
 
 
-def test_run_returns_error_code_for_missing_file(capsys, tmp_path):
+def test_run_returns_error_code_for_missing_file(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
     exit_code = main.run(["-f", str(tmp_path / "missing.json")])
     assert exit_code == 1
     assert "Error" in capsys.readouterr().err
 
 
-def test_run_completes_a_session_and_prints_stats(monkeypatch, tmp_path, capsys):
+def test_run_completes_a_session_and_prints_stats(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     filepath = _write_deck(tmp_path)
     monkeypatch.setattr(main.ui, "ask_answer", lambda card: "Central Processing Unit")
 
@@ -31,7 +36,9 @@ def test_run_completes_a_session_and_prints_stats(monkeypatch, tmp_path, capsys)
     assert "Total Questions : 1" in out
 
 
-def test_run_writes_stats_file_when_requested(monkeypatch, tmp_path):
+def test_run_writes_stats_file_when_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     filepath = _write_deck(tmp_path)
     monkeypatch.setattr(main.ui, "ask_answer", lambda card: "Central Processing Unit")
     stats_path = tmp_path / "out.json"
@@ -43,14 +50,14 @@ def test_run_writes_stats_file_when_requested(monkeypatch, tmp_path):
     assert saved["correct"] == 1
 
 
-def test_help_flag_exits_cleanly(capsys):
+def test_help_flag_exits_cleanly(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main.run(["--help"])
     assert exc_info.value.code == 0
     assert "usage" in capsys.readouterr().out.lower()
 
 
-def test_invalid_mode_choice_is_rejected_by_argparse(capsys):
+def test_invalid_mode_choice_is_rejected_by_argparse(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main.run(["-f", "irrelevant.json", "-m", "bogus"])
     assert exc_info.value.code == 2

@@ -38,15 +38,19 @@ class SequentialMode(QuizMode):
     """Serves cards in the order they were loaded, card 1 through N."""
 
     def __init__(self, cards: List[Flashcard]) -> None:
+        """Queue `cards` in their original order."""
         self._queue: Deque[Flashcard] = deque(cards)
 
     def has_next(self) -> bool:
+        """Return True while cards remain in the deck."""
         return bool(self._queue)
 
     def get_next_card(self) -> Optional[Flashcard]:
+        """Return the next card in original order, or None when exhausted."""
         return self._queue.popleft() if self._queue else None
 
     def record_result(self, card: Flashcard, correct: bool) -> None:
+        """Ignore the result: sequential order never changes."""
         return None
 
 
@@ -54,17 +58,21 @@ class RandomMode(QuizMode):
     """Serves cards in a shuffled order, exactly once each."""
 
     def __init__(self, cards: List[Flashcard], rng: Optional[random.Random] = None) -> None:
+        """Shuffle `cards` once, using `rng` if given (injectable for tests)."""
         shuffled = list(cards)
         (rng or random).shuffle(shuffled)
         self._queue: Deque[Flashcard] = deque(shuffled)
 
     def has_next(self) -> bool:
+        """Return True while cards remain in the shuffled deck."""
         return bool(self._queue)
 
     def get_next_card(self) -> Optional[Flashcard]:
+        """Return the next card in shuffled order, or None when exhausted."""
         return self._queue.popleft() if self._queue else None
 
     def record_result(self, card: Flashcard, correct: bool) -> None:
+        """Ignore the result: the shuffle is fixed at construction time."""
         return None
 
 
@@ -79,17 +87,21 @@ class AdaptiveMode(QuizMode):
     """
 
     def __init__(self, cards: List[Flashcard], max_retries: int = 2) -> None:
+        """Queue `cards`, allowing each up to `max_retries` extra attempts."""
         self._queue: Deque[Flashcard] = deque(cards)
         self._max_retries = max_retries
         self._retry_counts: Dict[str, int] = defaultdict(int)
 
     def has_next(self) -> bool:
+        """Return True while any card (including a requeued one) remains."""
         return bool(self._queue)
 
     def get_next_card(self) -> Optional[Flashcard]:
+        """Return the next card to ask, or None when nothing is left to retry."""
         return self._queue.popleft() if self._queue else None
 
     def record_result(self, card: Flashcard, correct: bool) -> None:
+        """Requeue `card` if it was missed and still has retries remaining."""
         if not correct and self._retry_counts[card.front] < self._max_retries:
             self._retry_counts[card.front] += 1
             self._queue.append(card)
@@ -106,6 +118,13 @@ class QuizModeFactory:
 
     @classmethod
     def create(cls, mode_name: str, cards: List[Flashcard]) -> QuizMode:
+        """Build the QuizMode registered under `mode_name`, loaded with `cards`.
+
+        The lookup is case-insensitive and whitespace-tolerant.
+
+        Raises:
+            ValueError: if `mode_name` is not a registered mode.
+        """
         key = mode_name.strip().lower()
         mode_class = cls._REGISTRY.get(key)
         if mode_class is None:
@@ -124,6 +143,7 @@ class SessionStats:
 
     @property
     def accuracy(self) -> float:
+        """Percentage of questions answered correctly, 0.0 for an empty session."""
         if self.total_questions == 0:
             return 0.0
         return (self.correct / self.total_questions) * 100
@@ -137,12 +157,14 @@ class QuizEngine:
     """Runs a quiz session by driving a QuizMode strategy and tracking stats."""
 
     def __init__(self, mode: QuizMode) -> None:
+        """Start a session that serves cards using the `mode` strategy."""
         self._mode = mode
         self._stats = SessionStats()
         self._seen: Set[str] = set()
 
     @property
     def stats(self) -> SessionStats:
+        """Stats accumulated so far, readable even if the session was cut short."""
         return self._stats
 
     def run(self, ask_answer: AnswerProvider, report_feedback: FeedbackReporter) -> SessionStats:
