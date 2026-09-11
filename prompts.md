@@ -80,9 +80,9 @@ before/after analysis for the six most significant of these lives in
     command, and a run against a missing file and a malformed JSON file —
     confirm none of these print a raw Python traceback."
 
-## Second rubric pass — "Just follow the rubric, best practice later"
+## Second review pass — "Just follow the requirements, best practice later"
 
-16. "Just follow the rubric please — we can do best practice later." —
+16. "Just follow the requirements please — we can do best practice later." —
     prompted a stricter re-read of `docs/report_template.md` section by
     section against `docs/final_report.md`, which found four missing
     sections (Code Quality Analysis, the Learning Outcomes and Reflection

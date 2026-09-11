@@ -1,294 +1,132 @@
-# AI Edit Log — Flashcard Quizzer
+# AI Editing Log — Flashcard Quizzer
 
-This log documents the specific prompts used to build the Flashcard Quizzer
-with Claude Code, what Claude produced, and where its first draft was
-reviewed, corrected, or rejected before being accepted. See `prompts.md` at
-the repository root for the condensed prompt sequence, and
-`ai_guidance/code_review_checklist.md` for the checklist used during review.
+This log records the specific prompts used to build "Flashcard Quizzer" with Claude Code, Claude's outputs, and the points where the initial draft was reviewed, modified, or rejected before final adoption. Please refer to `prompts.md` at the repository root for a summary of prompts, and `ai_guidance/code_review_checklist.md` for the checklist used during reviews.
 
 ---
 
-## 2026-09-11 — Data loader error handling
+## Data Loader Error Handling
 
-**Context:** Needed `utils/file_handler.py` to load flashcards from JSON in
-either the array or `{"cards": [...]}` shape, and to fail with a friendly
-message rather than a traceback per the spec's "crash gracefully" rule.
+**Background:** A `utils/file_handler.py` module was required to load flashcards from JSON. The JSON format needed to support either a raw array (list) or a structure like `{"cards": [...]}`. In accordance with the "crash gracefully" rule in the specifications, the code had to fail by displaying a clear, understandable message rather than exposing a raw traceback.
 
 **AI Tool Used:** Claude Code (Sonnet 5)
 
-**Prompt/Request:** "Write a `load_flashcards(filepath)` function that
-accepts either a JSON array of `{front, back}` objects or an object with a
-top-level `cards` array. It must validate every card has non-empty `front`
-and `back` strings, and never let `json.JSONDecodeError`, `FileNotFoundError`,
-or a `KeyError` reach the caller as a raw traceback."
+**Prompt/Request:** "Create a `load_flashcards(filepath)` function that accepts either a JSON array of `{front, back}` objects or an object with a top-level `cards` array. Validate that the `front` and `back` strings for each card are non-empty, and ensure that `json.JSONDecodeError`, `FileNotFoundError`, and `KeyError` do not propagate to the caller as raw tracebacks."
 
-**AI Response:** Claude's first draft caught `json.JSONDecodeError` and
-`FileNotFoundError` but re-raised missing-field problems as a bare
-`KeyError(f"Card {i} missing 'back'")`, and used `raw["back"]` (dict
-indexing) rather than `.get()`.
+**AI Response:** Claude's initial draft successfully caught `json.JSONDecodeError` and `FileNotFoundError`. However, issues regarding missing fields resulted in a raw `KeyError(f"Card {i} missing 'back'")` being re-raised, as the code used direct dictionary access (`raw["back"]`) instead of `.get()`.
 
-**Changes Made:** Replaced the bare `KeyError` with a single custom
-`FlashcardLoadError` exception used for every failure mode (missing file,
-bad JSON, wrong top-level shape, missing/blank field), each with a
-human-readable message naming the file and, where relevant, the card
-number. Switched to `.get()` so a missing key produces our own message
-instead of leaking a raw `KeyError`.
+**Changes Made:** Instead of using raw `KeyError` exceptions, the code was modified to use a single custom exception, `FlashcardLoadError`, for all failure scenarios (missing file, invalid JSON, incorrect top-level structure, or missing/empty fields). Each exception now includes a human-readable message containing the filename and (where applicable) the card number. Additionally, the code was modified to use `.get()` instead of direct access, ensuring a custom message is displayed rather than leaking a raw `KeyError` when a key is missing.
 
-**Reasoning:** `main.py` needs one exception type to catch at the CLI
-boundary to satisfy "crash gracefully with a helpful message, not a stack
-trace." A `KeyError` bubbling out would print exactly the traceback the spec
-says to avoid, and its message ("`'back'`") is meaningless to a non-developer
-end user.
+**Reasoning:** To meet the requirement of "crashing gracefully with a helpful message instead of a stack trace," it was necessary to unify the exception types caught at the CLI boundary within `main.py`. If a `KeyError` were allowed to bubble up, it would result in the output of a traceback—something the specifications aim to avoid. Furthermore, the error message itself (e.g., `'back'`) is meaningless to the average end-user who is not a developer.
 
-**Outcome:** `main.py` now has a single `except (FlashcardLoadError,
-ValueError)` block; every malformed-input path was covered directly in
-`tests/test_flashcard_loader.py` (missing file, invalid JSON, missing
-front/back, blank field, wrong shape, non-object card).
+**Result:** A single exception-handling block—`except (FlashcardLoadError, ValueError)`—was implemented in `main.py`. Additionally, all invalid input scenarios (missing files, invalid JSON, missing 'front' or 'back' fields, empty fields, malformed structures, non-object card entries, etc.) are now directly tested in `tests/test_flashcard_loader.py`.
 
-**Lessons Learned:** When asking an AI for "graceful error handling," be
-explicit that *every* exception type must be caught and translated — the
-first pass will usually handle the exception types you named in the prompt
-and miss the ones you didn't (here, `KeyError` from direct indexing).
+**Lesson Learned:** When asking AI to implement "graceful error handling," you must explicitly state the need to catch *all* exception types and convert them into the appropriate format. Otherwise, the initial output often handles only the specific exception types mentioned in the prompt, overlooking others—such as the `KeyError` caused by direct index access in this instance.
 
----
+## Risk of Infinite Loop in Adaptive Mode
 
-## 2026-09-11 — Adaptive mode risked an infinite loop
-
-**Context:** Implementing `AdaptiveMode`, the "challenge feature" that
-should "prioritize cards the user previously got wrong."
+**Background:** Implementation of `AdaptiveMode`, a "challenge feature" that prioritizes presenting cards the user previously answered incorrectly.
 
 **AI Tool Used:** Claude Code (Sonnet 5)
 
-**Prompt/Request:** "Implement `AdaptiveMode(QuizMode)` that requeues a card
-to the back of the deck whenever the user gets it wrong, so missed cards
-keep coming back until answered correctly."
+**Prompt/Request:** "Implement `AdaptiveMode(QuizMode)` so that whenever a user answers incorrectly, the card is returned to the end of the deck. This ensures that incorrectly answered cards are presented repeatedly until the user gets them right."
 
-**AI Response:** The literal implementation of that request has no upper
-bound: a card the user keeps answering wrong gets requeued forever, so
-`has_next()` never returns `False` if even one card is never answered
-correctly. In an unattended/scripted context (or a stuck user) the quiz
-session would never terminate.
+**AI Response:** Implementing that request literally removes the upper limit for the termination condition. Since a card answered incorrectly would be returned to the deck indefinitely, `has_next()` would never return `False` as long as there was even a single card the user couldn't answer correctly. Consequently, the quiz session would never end during unattended execution or scripted processing (or if the user became unable to interact with the system).
 
-**Changes Made:** Rejected the unbounded version and added a `max_retries`
-parameter (default 2) with a `_retry_counts` dict keyed by card front; a
-wrong answer only requeues the card while it has retries remaining.
+**Changes Made:** I rejected the implementation without limits and added a `max_retries` parameter (default: 2) along with a `_retry_counts` dictionary keyed by the card's "front" content. This ensures that an incorrectly answered card is returned to the deck only if retry attempts remain.
 
-**Reasoning:** A quiz mode that can loop forever is a functional bug, not a
-feature — "prioritize" should mean "ask again a bounded number of times,"
-not "never let the session end." Bounding retries also made the mode
-trivially testable (`test_adaptive_mode_stops_retrying_after_max_retries`)
-where the unbounded version would have required an arbitrary iteration cap
-in the test itself.
+**Rationale:** A quiz mode capable of looping forever is a "bug," not a feature. "Prioritizing" should mean "re-presenting a limited number of times," not "preventing the session from ever ending." Setting a limit on retries also facilitated testing (specifically, `test_adaptive_mode_stops_retrying_after_max_retries`). Without a limit, the test itself would have required an arbitrary cap on the number of iterations.
 
-**Outcome:** `AdaptiveMode` now guarantees termination and the behavior is
-covered by three targeted unit tests in `test_quiz_modes.py`, including one
-that answers a card wrong `max_retries + 1` times and asserts the deck is
-finally exhausted.
+**Result:** `AdaptiveMode` is now guaranteed to terminate. This behavior is verified by three unit tests in `test_quiz_modes.py`, including a test confirming that the deck empties after `max_retries + 1` incorrect answers.
 
-**Lessons Learned:** When an AI-generated behavior involves a queue/retry
-loop, explicitly check for a termination guarantee before accepting it —
-"repeat until correct" is a natural-sounding requirement that hides an
-unbounded loop if taken literally.
+**Lesson:** When an AI-generated process involves queues or retry loops, you should explicitly verify that termination is guaranteed before adopting it. A requirement to "repeat until successful" may seem natural at first glance, but taking it literally can harbor the pitfall of an infinite loop.
 
 ---
 
-## 2026-09-11 — QuizEngine was tightly coupled to `input()`/`print()`
+## Issue: Tight Coupling of `QuizEngine` with `input()` and `print()`
 
-**Context:** Wiring `QuizMode` + `QuizModeFactory` into a runnable session
-loop (`QuizEngine`).
+**Background:** I was working on integrating `QuizMode` and `QuizModeFactory` into an executable session loop (`QuizEngine`).
 
 **AI Tool Used:** Claude Code (Sonnet 5)
 
-**Prompt/Request:** "Write a `QuizEngine` class that loops over a `QuizMode`
-until it's exhausted, asking the user for input and printing correct/
-incorrect feedback, then returns session stats (total questions, accuracy,
-missed terms)."
+**Prompt/Request:** "Create a `QuizEngine` class that loops until `QuizMode` finishes, prompts the user for input, displays feedback on correctness, and finally returns session statistics (total questions, accuracy rate, and missed terms)."
 
-**AI Response:** The first draft called `input()` and `print()` directly
-inside `QuizEngine.run()`. It worked when run manually, but it meant the
-only way to unit-test the full session loop (required by
-`test_full_session` in the spec) would be monkeypatching built-in `input`
-and capturing stdout with `capsys` — fragile and indirect for something as
-important as the scoring logic.
+**AI Response:** The initial draft called `input()` and `print()` directly within `QuizEngine.run()`. While this worked for manual execution, it meant that performing the required unit test for the full session loop (`test_full_session`) would necessitate monkey-patching the built-in `input` and capturing standard output with `capsys`. This was a fragile and indirect testing approach for a critical component: the scoring logic.
 
-**Changes Made:** Refactored `run()` to accept two injected callables,
-`ask_answer(card) -> Optional[str]` and `report_feedback(card, correct) ->
-None`, instead of calling `input`/`print` itself. Moved the real
-`input()`/colored-`print()` implementations into `ui.py`, wired together
-only in `main.py`.
+**Changes Made:** I refactored the `run()` method to accept two injected callables—`ask_answer(card) -> Optional[str]` and `report_feedback(card, correct) -> None`—instead of calling `input` and `print` directly. The actual implementations for `input()` and the `print()` calls (handling colored output) were moved to `ui.py`, with the coordination logic placed solely in `main.py`.
 
-**Reasoning:** Separation of concerns — `QuizEngine` should own scoring
-logic, not terminal I/O. This also makes `test_integration.py::test_full_session`
-a plain function test (pass in a list of canned answers via an iterator,
-assert on the returned `SessionStats`) rather than a slower, less direct
-subprocess or monkeypatch-heavy test.
+**Reasoning:** To achieve Separation of Concerns. `QuizEngine` should handle scoring logic, not terminal I/O. This change allowed `test_integration.py::test_full_session` to be implemented as a simple functional test—passing a list of answers via an iterator and asserting the returned `SessionStats`—rather than relying on slow, indirect subprocesses or heavy use of monkey-patching.
 
-**Outcome:** `test_full_session`, `test_session_stops_early_when_user_exits`,
-and the adaptive-mode integration test all drive `QuizEngine.run()` directly
-with fake callables — no I/O mocking required, and the same production
-`ui.ask_answer`/`ui.report_feedback` pair is exercised separately and more
-thoroughly in `test_ui.py`.
+**Result:** It is now possible to execute `QuizEngine.run()` directly using dummy callables across `test_full_session`, `test_session_stops_early_when_user_exits`, and all integration tests for adaptive mode. Mocking I/O is no longer necessary; the production-grade `ui.ask_answer` and `ui.report_feedback` pair is now tested separately and more thoroughly in `test_ui.py`.
 
-**Lessons Learned:** When an AI's first draft mixes business logic with I/O,
-the fix is almost always dependency injection at the boundary. It's worth
-asking for this explicitly up front next time ("accept the input/output
-functions as parameters") rather than refactoring after the fact.
+**Lesson Learned:** When AI-generated code mixes business logic with I/O, the standard approach for remediation is to employ "Dependency Injection (DI) at the boundaries." Rather than refactoring later, it is wiser to explicitly require this architecture from the start—such as by designing functions to accept I/O operations as parameters.
 
 ---
 
-## 2026-09-11 — Factory registry typed too narrowly for mypy
+## Issue: Factory Registry Type Definition Was Too Restrictive for mypy
 
-**Context:** Running `mypy .` as part of the "Definition of Done" quality
-gate, after implementing `QuizModeFactory`.
+**Background:** This issue arose when running `mypy .` as part of the "Definition of Done" quality gate after implementing `QuizModeFactory`.
 
 **AI Tool Used:** Claude Code (Sonnet 5)
 
-**Prompt/Request:** "Run mypy and flake8 across the project and fix any
-errors."
+**Prompt/Request:** "Run `mypy` and `flake8` across the entire project and fix any errors."
 
-**AI Response:** `mypy` failed with `Too many arguments for "QuizMode"` on
-the line that calls `mode_class(cards)` inside `QuizModeFactory.create`.
-The registry had been typed as `Dict[str, Type[QuizMode]]`, so mypy checked
-every call against the abstract base class's (implicit, no-arg)
-constructor, not the concrete subclasses' actual `__init__(self, cards)`
-signatures.
+**AI Response:** `mypy` reported a "Too many arguments for 'QuizMode'" error on the line calling `mode_class(cards)` within `QuizModeFactory.create`. Because the registry type was defined as `Dict[str, Type[QuizMode]]`, `mypy` was validating the calls against the abstract base class's constructor (which takes no arguments) rather than the actual `__init__(self, cards)` signatures of the concrete subclasses.
 
-**Changes Made:** Retyped the registry as
-`Dict[str, Callable[[List[Flashcard]], QuizMode]]`, which correctly
-describes "a callable that takes a list of flashcards and returns some
-`QuizMode`" and matches every concrete class's constructor signature
-(`RandomMode`'s optional `rng` parameter has a default, so it still fits).
+**Changes Made:** I updated the registry type definition to `Dict[str, Callable[[List[Flashcard]], QuizMode]]`. This accurately represents a "callable that accepts a list of flashcards and returns a `QuizMode`" and is compatible with the constructor signatures of all concrete classes (this definition works fine even for `RandomMode`, as its optional `rng` argument has a default value).
 
-**Reasoning:** This is a real type-safety gap, not a mypy false positive:
-`Type[QuizMode]` is technically correct only if every subclass shares the
-base class's constructor signature, which none of ours do. Silencing it
-with `# type: ignore` would have hidden a genuine constructor-mismatch bug
-if a future mode's `__init__` took incompatible arguments.
+**Reasoning:** This was not a `mypy` false positive but a genuine lack of type safety. The type definition `Type[QuizMode]` is technically correct only when all subclasses share the base class's constructor signature; in this case, however, none of the subclasses did so. If I had suppressed the error using `# type: ignore`, I risked overlooking actual bugs—such as constructor mismatches—that could arise if a mode added in the future required incompatible arguments for its `__init__` method.
 
-**Outcome:** `mypy .` passes with zero errors project-wide (`Success: no
-issues found in 12 source files`), without any `# type: ignore` suppressions.
+**Result:** Running `mypy .` without suppressing errors via `# type: ignore` yielded zero errors across the entire project (`Success: no issues found in 12 source files`).
 
-**Lessons Learned:** A factory/registry pattern mapping names to classes
-should almost always be typed by the constructor's `Callable` signature,
-not by `Type[Base]`, unless every subclass is guaranteed to share the base
-constructor.
+**Lesson Learned:** For factory or registry patterns that map names to classes, you should define types using the constructor's `Callable` signature rather than `Type[Base]`, unless it is guaranteed that all subclasses share the base class's constructor.
 
 ---
 
-## 2026-09-11 — Scoring semantics for Adaptive mode were ambiguous
+## Scoring Definition in Adaptive Mode Was Ambiguous
 
-**Context:** Deciding what "Total Questions" and "Accuracy %" should mean
-for `AdaptiveMode`, where the same card can be presented more than once in
-one session.
+**Background:** The issue of how to define "Total Questions" and "Accuracy %" in "Adaptive Mode," where the same card might appear multiple times within a single session.
 
 **AI Tool Used:** Claude Code (Sonnet 5)
 
-**Prompt/Request:** "If a card is answered wrong and then requeued and
-later answered correctly in Adaptive mode, should the session stats count
-it as one question or two, and should it count as correct or incorrect?"
+**Prompt/Request:** "In Adaptive Mode, if a user answers a card incorrectly but answers it correctly when it appears again later, should the session statistics count this as one question or two? Also, should it be treated as a correct answer, an incorrect answer, or both?"
 
-**AI Response:** Claude proposed two options: (a) count every presentation
-as a separate question (so a retried card can contribute both a wrong and a
-later right answer to the tally), or (b) count each unique card once, scored
-by its first attempt, with later presentations only affecting whether the
-card keeps reappearing.
+**AI Response:** Claude proposed two options: (a) Count each presentation as a separate question (meaning a retried card contributes to the tally as both an incorrect answer and a subsequent correct answer), or (b) Count each card as a unique item only once and determine the score based on the initial attempt (subsequent presentations affect only whether the card continues to reappear).
 
-**Changes Made:** Accepted option (b): `QuizEngine` tracks a `_seen` set of
-card fronts and only updates `total_questions`/`correct`/`missed_terms` the
-first time a given card is presented; subsequent re-presentations (from
-Adaptive mode's requeueing) still run through `record_result` but no longer
-touch the stats.
+**Changes Made:** Option (b) was adopted. The `QuizEngine` maintains a `_seen` set to track cards (specifically their "front" sides) that have already been presented; it updates `total_questions`, `correct`, and `missed_terms` only when a specific card is presented for the first time. While `record_result` is still executed for subsequent presentations triggered by Adaptive Mode, the statistical data remains unchanged.
 
-**Reasoning:** Option (a) would let Adaptive mode inflate a user's own
-accuracy by re-asking a card until it's answered right and counting that as
-a fresh correct answer, which misrepresents how well the user actually knew
-the deck on first exposure — and would make Adaptive-mode accuracy
-non-comparable to Sequential/Random-mode accuracy for the same deck.
+**Reasoning:** With option (a), a user could repeatedly answer the same card until getting it right and have those subsequent correct answers counted, artificially inflating their accuracy rate. This approach fails to accurately reflect the user's level of understanding at the time they first encountered the card. Furthermore, it makes it impossible to compare accuracy rates between Adaptive Mode and Sequential or Random modes using the same deck.
 
-**Outcome:** Documented in `QuizEngine.run()`'s docstring and directly
-asserted in
-`test_full_session_with_adaptive_mode_scores_first_attempt_only`, which
-answers a card wrong then right and checks it lands in `missed_terms` with
-`correct == 1`, not `2`.
+**Result:** The specification was documented in the `QuizEngine.run()` docstring and explicitly verified via the test case `test_full_session_with_adaptive_mode_scores_first_attempt_only`. This test confirms that if a card is answered incorrectly and then correctly, the item remains in `missed_terms` while the `correct` count is recorded as 1 rather than 2.
 
-**Lessons Learned:** Ambiguous scoring rules are exactly the kind of design
-decision that should be resolved with the AI (or in this case, worked
-through explicitly) *before* writing tests around it, since either answer
-is "correct code" but only one matches the intended product behavior.
+**Lesson Learned:** Ambiguous scoring rules are design decisions that should be resolved with the AI—or otherwise explicitly clarified—*before* writing tests. This is because, while multiple approaches might result in "correct code," only one aligns with the intended product behavior.
 
 ---
 
-## 2026-09-12 — Rubric audit caught an unsound type assumption in the tests
+## Final Review Reveals Inappropriate Type Assumptions in Tests
 
-**Context:** Before submitting, I re-checked the finished project line by
-line against the assignment rubric rather than assuming the earlier "all
-tools pass" result meant everything was covered.
+**Background:** Before submission, instead of assuming all requirements were met based solely on the previous "all tools passed tests" result, the completed project was reviewed line by line against the assignment specification.
 
 **AI Tool Used:** Claude Code (Opus 5)
 
-**Prompt/Request:** "Check the output against the rubric in
-`final-final-project.txt` — verify each requirement against the actual
-files rather than from memory."
+**Prompt/Request:** "Compare the requirements and output in `final-final-project.txt`. Verify by comparing the actual file with each requirement, rather than relying on memory."
 
-**AI Response:** The audit was run as scripted checks over the AST rather
-than by eyeballing, which found four things a read-through had missed:
-16 methods in `quiz_engine.py` with no docstrings (the rubric requires
-docstrings on functions); 45 test functions with no type hints (the spec
-says *all* functions need hints); two tests whose names didn't exactly
-match the spec-mandated `test_quiz_mode_factory` and
-`test_adaptive_mode_behavior`; and no coverage report committed to the
-repo, since `htmlcov/` had been gitignored as a build artifact even though
-the submission checklist lists it as a deliverable.
+**AI Response:** Auditing using an AST (Abstract Syntax Tree) script, rather than visual inspection, revealed four issues that would have been overlooked with a simple read-through. Specifically, 16 methods in `quiz_engine.py` lacked docstrings (documentation strings), 45 test functions lacked type hints (the specification requires hints for *all* functions), test names did not perfectly match the `test_quiz_mode_factory` and `test_adaptive_mode_behavior` specified in the specification, and the coverage report was not committed to the repository (because `htmlcov/` was included in `.gitignore` as a build artifact, even though it was listed as an artifact in the submission checklist).
 
-**Changes Made:** Added the missing docstrings; annotated every test
-function and re-enabled `disallow_untyped_defs` for `tests/` so mypy runs
-strict project-wide; added a `test_quiz_mode_factory` test asserting the
-factory returns the right class for all three names, and renamed the
-adaptive test to the spec's exact name; committed the coverage report and
-documented it in `docs/coverage_report.md`.
+**Changes made:** Added missing docstrings. Added type hints to all test functions and re-enabled `disallow_untyped_defs` for the `tests/` directory to ensure strict mypy checks are performed throughout the project. Additionally, we added a `test_quiz_mode_factory` test to verify that the factory returns the correct class for all three names, and changed the adaptive mode test names to match the specification. Furthermore, we committed a coverage report and documented its contents in `docs/coverage_report.md`.
 
-**Reasoning:** Turning strict typing on for the tests wasn't just
-box-ticking — it immediately failed with 11 errors showing the tests were
-passing `Optional[Flashcard]` straight from `get_next_card()` into methods
-that require a non-optional `Flashcard`. The tests only passed because the
-decks happened never to be empty at those points. I added a typed
-`next_card()` helper that asserts non-None, so the assumption is now
-checked rather than merely true by luck.
+**Reason:** Enabling strict type checking for the tests wasn't just a formality. Immediately after enabling it, we encountered 11 errors. This indicated that the `Optional[Flashcard]` returned by `get_next_card()` was being passed directly to a method that required a `Flashcard` that was not `Optional` (i.e., did not allow `None`). The tests had passed until then simply because the deck (stack of cards) happened not to be empty at that point. Therefore, we added a `next_card()` helper function with a type definition that guarantees it's not `None`. This ensures that the preconditions are explicitly verified, rather than relying on mere "chance success."
 
-**Outcome:** 42 tests passing, 98% coverage, and `black`/`flake8`/`mypy`
-all clean with mypy now strict across tests as well as source.
+**Results:** All 42 tests passed, achieving 98% coverage. Checks by `black`, `flake8`, and `mypy` all passed, demonstrating that mypy's rigorous checks are applied not only to source code but also to test code.
 
-**Lessons Learned:** "The tools all pass" is only as strong as the config
-they run under — relaxing a rule for a directory (here, typing in `tests/`)
-quietly moves that code outside the quality gate. It's worth periodically
-re-running the gate at full strictness to see what the exemption was
-hiding, and auditing against the spec mechanically rather than by memory.
+**Lesson Learned:** Even if a tool "passes everything," it's ultimately dependent on runtime settings. Relaxing rules for a specific directory (in this case, type checking in `tests/`) can inadvertently slip that code outside the quality check network (quality gate). It's worth periodically rerunning checks with the strictest settings to see the impact of exceptions. ...was hidden, and the audit was mechanically performed against specifications rather than relying on memory.
 
 ---
 
-## Summary Statistics
+## Statistical Data
 
-- **Total AI interactions logged in detail:** 6 (plus the ongoing
-  decompose → generate → review → refine cycle described in `prompts.md`)
-- **Lines of AI-generated code used:** 654 (345 application + 309 test
-  lines, excluding blanks and comments). Every line in this project was
-  AI-generated; none was hand-written from scratch, per the brief's
-  instruction to rewrite the prompt rather than the Python.
-- **Lines of AI-generated code modified:** 159 changed during the documented
-  review passes (105 insertions, 54 deletions in the audit commit alone),
-  plus the in-session corrections before the first commit: the
-  `FlashcardLoadError` consolidation, the `AdaptiveMode` retry bound, the
-  `QuizEngine.run()` signature change from direct I/O to injected
-  callables, and the factory's `Callable` retyping. Roughly a quarter of
-  the code was revised after review rather than accepted as first drafted.
-- **Most helpful AI interaction:** The QuizEngine/UI decoupling — it made
-  the hardest-to-test part of the app (a session loop that asks for input)
-  trivially testable.
-- **Most challenging AI interaction:** Deciding Adaptive mode's scoring
-  semantics — the code was easy to write either way, but only one behavior
-  was actually correct for the product.
-- **Biggest lesson learned:** An AI agent will faithfully implement exactly
-  what you asked for, including the edge cases you forgot to rule out (an
-  unbounded retry loop, a `KeyError` you didn't name, a `Type[Base]`
-  annotation that doesn't fit mismatched constructors). Review has to check
-  what *wasn't* specified, not just whether the code satisfies what was.
+- **Total number of detailed AI interactions:** 6 (excluding the continuous "decompose → generate → review → improve" cycle documented in `prompts.md`).
+- **Lines of AI-generated code:** 654 lines (345 lines for the application + 309 lines for tests; excluding blank lines and comments). All code in this project was generated by AI; no code was hand-written from scratch, as the process followed the instruction to revise prompts rather than directly rewriting Python code.
+- **Lines of AI-generated code modified:** 159 lines were altered during the recorded review process (audit commits alone involved 105 insertions and 54 deletions). This figure also includes corrections made during sessions prior to the initial commit (e.g., consolidating `FlashcardLoadError`, setting retry limits for `AdaptiveMode`, changing the `QuizEngine.run()` signature from direct I/O to injectable callables, and fixing `Callable` type definitions in the factory). Approximately one-quarter of the code was modified after review rather than being adopted in its initial draft form.
+- **Most beneficial AI interaction:** Decoupling `QuizEngine` from the UI. This made it easy to test the part of the app that was previously the most difficult to test: the session loop that prompts for user input.
+- **Most challenging AI interaction:** Determining the scoring specifications (semantics) for Adaptive Mode. While writing the code for either approach was simple, only one method resulted in the correct behavior for the actual product.
+- **Key takeaway:** AI agents faithfully implement exactly what the user instructs. This includes edge cases the user forgot to exclude—such as infinite retry loops, unexpected `KeyError` exceptions, or `Type[Base]` annotations that were inconsistent with the constructor. Therefore, during the review, it is necessary to verify not only that the code meets the specified requirements but also to check the aspects that were *not* specified.
