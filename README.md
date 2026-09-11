@@ -86,11 +86,19 @@ on the five application modules is 95%, above the 80% target.
 
 ```bash
 black .      # formatting (line length 100)
+isort .      # import ordering
 flake8 .     # linting
 mypy .       # static type checking
 ```
 
-All three currently pass with zero errors/warnings.
+Or all together, as the course brief suggests:
+
+```bash
+black . && isort . && flake8 . && mypy . && pytest
+```
+
+All four currently pass with zero errors/warnings; mypy runs with
+`disallow_untyped_defs` enabled across the whole project, tests included.
 
 ## Project Structure
 

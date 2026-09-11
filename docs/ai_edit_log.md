@@ -270,6 +270,17 @@ hiding, and auditing against the spec mechanically rather than by memory.
 
 - **Total AI interactions logged in detail:** 6 (plus the ongoing
   decompose → generate → review → refine cycle described in `prompts.md`)
+- **Lines of AI-generated code used:** 654 (345 application + 309 test
+  lines, excluding blanks and comments). Every line in this project was
+  AI-generated; none was hand-written from scratch, per the brief's
+  instruction to rewrite the prompt rather than the Python.
+- **Lines of AI-generated code modified:** 159 changed during the documented
+  review passes (105 insertions, 54 deletions in the audit commit alone),
+  plus the in-session corrections before the first commit: the
+  `FlashcardLoadError` consolidation, the `AdaptiveMode` retry bound, the
+  `QuizEngine.run()` signature change from direct I/O to injected
+  callables, and the factory's `Callable` retyping. Roughly a quarter of
+  the code was revised after review rather than accepted as first drafted.
 - **Most helpful AI interaction:** The QuizEngine/UI decoupling — it made
   the hardest-to-test part of the app (a session loop that asks for input)
   trivially testable.

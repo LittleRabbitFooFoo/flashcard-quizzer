@@ -22,6 +22,7 @@ file and quizzes the user on them in Sequential, Random, or Adaptive mode.
 
 - `pytest` / `pytest-cov` for testing and coverage.
 - `black` for formatting (line length 100, see `pyproject.toml`).
+- `isort` for import ordering (`setup.cfg`, black profile).
 - `flake8` for linting (`setup.cfg`).
 - `mypy` for static type checking (`setup.cfg`) with
   `disallow_untyped_defs` on across the whole project, tests included —
@@ -34,7 +35,7 @@ source venv/bin/activate
 python main.py -m adaptive -f data/python_basics.json
 pytest
 pytest --cov=main --cov=models --cov=quiz_engine --cov=ui --cov=utils --cov-report=html
-black . && flake8 . && mypy .
+black . && isort . && flake8 . && mypy . && pytest
 ```
 
 ## Working Conventions
