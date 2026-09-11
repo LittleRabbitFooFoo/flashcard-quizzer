@@ -163,7 +163,7 @@ since either version passes its own.
   registry line; the pattern choice is load-bearing, not decorative.
 - **Test Quality: 4** — edge cases and error paths well covered, and the
   injected-callable design lets tests assert real behavior rather than
-  mocks. Not a 5: two tests reach into a private `_queue` attribute.
+  mocks. Not a 5: one test reaches into a private `_queue` attribute.
 - **Documentation: 5** — README with usage examples, detailed AI log,
   justified coverage report, docstrings on every public surface.
 

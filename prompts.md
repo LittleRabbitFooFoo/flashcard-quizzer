@@ -3,7 +3,7 @@
 This is the condensed sequence of prompts used to build the Flashcard
 Quizzer with Claude Code, in the order they were applied, following the
 Decompose → Generate → Review → Refine → Verify workflow. Detailed
-before/after analysis for the five most significant of these lives in
+before/after analysis for the six most significant of these lives in
 `docs/ai_edit_log.md`; this file is the flatter prompt-by-prompt record.
 
 ## Phase 1 — Data Layer & Validation
@@ -69,13 +69,34 @@ before/after analysis for the five most significant of these lives in
     `Type[QuizMode]` factory-typing bug fixed in `docs/ai_edit_log.md`, a
     black quote-style reformat, and a batch of missing type annotations in
     the test files.
-15. "Add type hints to every test function too, and turn
+14. "Add type hints to every test function too, and turn
     `disallow_untyped_defs` back on for `tests/` so mypy runs strict across
     the whole project, not just the source modules." — this surfaced a
     genuine typing gap: the tests were passing `Optional[Flashcard]`
     straight from `get_next_card()` into methods expecting a `Flashcard`.
     Fixed with a typed `next_card()` helper that asserts non-None.
-16. "Manually run `python main.py -m adaptive -f data/python_basics.json`
+15. "Manually run `python main.py -m adaptive -f data/python_basics.json`
     end-to-end, and also `-m sequential` with a wrong answer and the `exit`
     command, and a run against a missing file and a malformed JSON file —
     confirm none of these print a raw Python traceback."
+
+## Second rubric pass — "Just follow the rubric, best practice later"
+
+16. "Just follow the rubric please — we can do best practice later." —
+    prompted a stricter re-read of `docs/report_template.md` section by
+    section against `docs/final_report.md`, which found four missing
+    sections (Code Quality Analysis, the Learning Outcomes and Reflection
+    subsections, and Appendices A-C).
+17. "Fill in the missing report sections with real, measured numbers —
+    don't estimate the code/test statistics, count them." — added Metrics
+    and Self-Assessment using actual LOC, function, and coverage counts
+    rather than invented figures, then trimmed prose elsewhere to stay
+    inside the 1000-1500 word band.
+18. "The template's code-quality checklist names isort, which we dropped —
+    add it, wire it into setup.cfg and requirements.txt, and confirm it
+    doesn't reformat anything unexpected." — isort reported zero changes,
+    confirming the existing import order was already compliant.
+19. "The `ai_edit_log.md` Summary Statistics section has two blank fields
+    (lines of AI-generated code used/modified) — fill them from the actual
+    diff stats, not an estimate." — pulled from `git diff --stat` between
+    the initial commit and the audit commit.

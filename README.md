@@ -122,12 +122,16 @@ flashcard-quizzer/
 ├── docs/
 │   ├── ai_edit_log.md          # Detailed AI interaction log
 │   ├── final_report.md         # Project report
+│   ├── coverage_report.md      # Coverage numbers + justification for gaps
+│   ├── report_template.md      # Blank template (from course starter)
 │   ├── design_patterns.md      # Reference guide (from course starter)
 │   └── project_rubric.md       # Reference rubric (from course starter)
 ├── ai_guidance/                 # Prompting & code review reference guides
+├── .claude/CLAUDE.md            # Claude Code project configuration
+├── htmlcov/                      # Committed coverage HTML report
 ├── prompts.md                   # Condensed prompt-by-prompt log
 ├── requirements.txt
-├── setup.cfg                    # flake8 + mypy + pytest config
+├── setup.cfg                    # isort + flake8 + mypy + pytest config
 └── pyproject.toml                # black config
 ```
 
@@ -174,6 +178,6 @@ have a non-empty value for both.
 
 - [Python](https://www.python.org/) 3.10+
 - [pytest](https://docs.pytest.org/) / [pytest-cov](https://pytest-cov.readthedocs.io/)
-- [Black](https://black.readthedocs.io/), [flake8](https://flake8.pycqa.org/), [mypy](https://mypy.readthedocs.io/)
+- [Black](https://black.readthedocs.io/), [isort](https://pycqa.github.io/isort/), [flake8](https://flake8.pycqa.org/), [mypy](https://mypy.readthedocs.io/)
 - [Claude Code](https://claude.ai/code) — AI pair programmer used throughout
   development (see `prompts.md` and `docs/ai_edit_log.md`)
