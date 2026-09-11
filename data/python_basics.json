@@ -1,0 +1,11 @@
+{
+  "cards": [
+    {"front": "What keyword defines a function in Python?", "back": "def"},
+    {"front": "What immutable, ordered sequence type uses parentheses?", "back": "tuple"},
+    {"front": "What built-in function returns the number of items in a container?", "back": "len"},
+    {"front": "What keyword catches an exception in a try block?", "back": "except"},
+    {"front": "What standard library module provides OS-level file path helpers?", "back": "os"},
+    {"front": "What keyword defines a generator by pausing a function?", "back": "yield"},
+    {"front": "What built-in maps a function over every item in an iterable?", "back": "map"}
+  ]
+}

@@ -1,0 +1,12 @@
+[
+  {"front": "CPU", "back": "Central Processing Unit"},
+  {"front": "RAM", "back": "Random Access Memory"},
+  {"front": "SSD", "back": "Solid State Drive"},
+  {"front": "API", "back": "Application Programming Interface"},
+  {"front": "DNS", "back": "Domain Name System"},
+  {"front": "HTTP", "back": "HyperText Transfer Protocol"},
+  {"front": "SSH", "back": "Secure Shell"},
+  {"front": "TLS", "back": "Transport Layer Security"},
+  {"front": "LB", "back": "Load Balancer"},
+  {"front": "CDN", "back": "Content Delivery Network"}
+]
