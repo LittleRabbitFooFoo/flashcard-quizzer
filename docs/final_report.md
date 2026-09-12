@@ -6,15 +6,15 @@
 
 ## Executive Summary
 
-"Flashcard Quizzer" is a terminal-based application that loads question-and-answer pairs from a JSON file and quizzes the user in one of three modes: sequential, random, or adaptive. Answers are evaluated in a case-insensitive manner, providing immediate, color-coded feedback. Upon session completion, a summary is displayed showing the total questions, the accuracy rate, and a list of terms that were answered incorrectly.
+"Flashcard Quizzer" is a terminal-based application that loads question-and-answer pairs from a JSON file and quizzes the user in one of three modes: sequential, random, or adaptive. Answers are evaluated case-insensitively with immediate, color-coded feedback, and it ends with a summary of total questions, accuracy rate, and missed terms.
 
-I developed this application using Claude Code, following the stages outlined in the specifications (Data Layer → Quiz Engine & Design Patterns → CLI → Testing & Tools). I reviewed the code generated at each stage before execution, rejecting or revising drafts several times; a record of this process is maintained in `docs/ai_edit_log.md`.
+I built this with Claude Code, in stages (Data Layer → Quiz Engine & Design Patterns → CLI → Testing & Tools), reviewing and revising generated code at each stage; that process is recorded in `docs/ai_edit_log.md`.
 
 ## Project Overview
 
 ### Problem Definition
 
-New employees needed a way to memorize a glossary of server-related acronyms without relying on GUIs, user accounts, or network connectivity. The requirement was for a tool that runs in any Python-compatible environment, loads JSON files editable even by non-engineers, and enables repetitive practice on terms that are frequently missed.
+New employees needed to memorize a glossary of server acronyms without a GUI, an account, or a network dependency — something that runs anywhere Python does, reads a JSON file a non-engineer can edit, and drills the terms they keep getting wrong.
 
 ### Solution Approach
 
@@ -29,7 +29,7 @@ The application is composed of four modules, each with a single responsibility: 
 - [x] Session summary display: total questions, accuracy rate, and missed terms
 - [x] `--stats` flag to save the summary as JSON
 
-These features go beyond the starter kit's basic CRUD capabilities, delivering: pluggable quiz modes, adaptive spaced repetition, immediate grading upon the first attempt, dual-schema data ingestion with validation, and session statistics with export functionality.
+These features go beyond the starter kit's basic CRUD: pluggable quiz modes, adaptive spaced repetition, first-attempt grading, dual-schema data ingestion with validation, and session statistics with export.
 
 ## Experience Collaborating with AI
 
@@ -39,15 +39,15 @@ These features go beyond the starter kit's basic CRUD capabilities, delivering: 
 
 ### Collaboration Workflow
 
-Instead of building the entire application at once, I proceeded in stages. For each prompt, I defined the target functions or classes, their inputs and outputs, and the failure patterns (error modes) that needed to be addressed. Relying on vague instructions like "handle errors appropriately" often results in code that only handles the failure scenarios the developer had in mind. After completing each stage, I reviewed the code and ran tests; I also had Claude run four quality-check tools and fix any issues identified.
+I worked in stages rather than requesting the whole app at once, specifying each function's inputs, outputs, and failure modes explicitly — vague prompts like "handle errors appropriately" tend to produce code that only covers the failures the author already thought of. After each stage I reviewed the code, ran tests, and had Claude run the quality tools.
 
 ### Key Outcomes of AI Collaboration
 
-The following six instances are documented in `docs/ai_edit_log.md`: consolidating loader failures into a `FlashcardLoadError` rather than letting a `KeyError` propagate; identifying and fixing an infinite retry loop in the design of `AdaptiveMode`; decoupling `QuizEngine` from direct I/O operations; fixing a factory type definition error flagged by `mypy` (where `Type[QuizMode]` was incompatible with subclasses having different constructors); clarifying ambiguous adaptive scoring specifications before tests could incorrectly validate wrong answers as correct; and identifying inappropriate type assumptions within tests through a final review pass.
+Six instances are documented in `docs/ai_edit_log.md`: consolidating loader failures into one `FlashcardLoadError` instead of a leaked `KeyError`; fixing an infinite retry loop in the design of `AdaptiveMode`; decoupling `QuizEngine` from direct I/O operations; fixing a `mypy` factory-typing error (`Type[QuizMode]` doesn't fit subclasses with differing constructors); resolving ambiguous Adaptive scoring before tests locked in the wrong answer; and a final review pass catching an unsound type assumption in tests.
 
 ### Challenges in AI Collaboration
 
-A recurring pattern emerged: while Claude implemented features exactly as instructed, prompts that sounded natural in English (e.g., "re-queue missed cards") could sometimes harbor hidden edge cases (e.g., an unlimited retry loop preventing the session from ever ending). The generated code was clean and idiomatic. The risk lay not in sloppy code, but in the AI faithfully implementing specifications that I had defined inadequately.
+A recurring pattern: Claude implemented features exactly as instructed, but prompts that sounded natural in English (e.g., "re-queue missed cards") could hide edge cases like an unlimited retry loop. The code itself was clean and idiomatic — the risk was specifications I had defined inadequately, not sloppy AI output.
 
 ## Software Engineering Practices
 
@@ -61,28 +61,28 @@ A recurring pattern emerged: while Claude implemented features exactly as instru
 
 ### Testing Strategy
 
-42 tests were conducted across five files: `test_flashcard_loader.py` (two JSON formats, invalid JSON, missing/empty fields), `test_quiz_modes.py` (factory resolution and rejection, mode ordering, adaptive re-queuing and retry limits), `test_integration.py` (full session, early termination, scoring on first attempt), `test_ui.py` (input handling including Ctrl+C/Ctrl+D/`exit`), and `test_main.py` (CLI parsing and error paths). Overall coverage reached 98%, with 95% for application modules alone, exceeding the 80% target. The decision not to aim for 100% coverage was made because the uncovered lines consist of abstract method bodies, dispatch logic in `__main__`, and two branches requiring filesystem mocking.
+42 tests were conducted across five files: `test_flashcard_loader.py` (two JSON formats, invalid JSON, missing/empty fields), `test_quiz_modes.py` (factory resolution and rejection, mode ordering, adaptive re-queuing and retry limits), `test_integration.py` (full session, early termination, scoring on first attempt), `test_ui.py` (input handling including Ctrl+C/Ctrl+D/`exit`), and `test_main.py` (CLI parsing and error paths). Coverage: 98% overall, 95% on application modules (target: 80%). 100% coverage wasn't the goal: the uncovered lines are abstract method bodies, `__main__` dispatch logic, and two branches needing filesystem mocking.
 
 ### Design Patterns Employed
 
-- **Strategy** — `QuizMode` serves as the interface, with `SequentialMode`, `RandomMode`, and `AdaptiveMode` implemented as algorithms to determine which card to present next. These modes can be swapped without modifying the `QuizEngine`. Since these three modes employ different algorithms while sharing a common operational interface, the Strategy pattern was a perfect fit for the problem at hand; it was not a pattern forced onto unnecessary code.
-- **Factory** — Since `QuizModeFactory.create(name, cards)` converts CLI strings into the appropriate instances, `main.py` does not directly import specific mode classes. Adding a new mode—such as "spaced-repetition"—requires only creating a single class and adding one line to the registry.
+- **Strategy** — `QuizMode` serves as the interface, with `SequentialMode`, `RandomMode`, and `AdaptiveMode` implemented as algorithms to determine which card to present next. These modes can be swapped without modifying the `QuizEngine`, since they share an interface but use different algorithms — exactly the problem Strategy solves, not a pattern forced onto code that didn't need one.
+- **Factory** — `QuizModeFactory.create(name, cards)` converts CLI strings into instances, so `main.py` never imports a concrete mode class. Adding a mode—e.g. spaced-repetition—means one new class and one registry line.
 
 ### Code Structure and Organization
 
-Each module operates independently without directly interfering with the internal implementation of other modules. `main.py` oversees the entire system, `ui.py` handles terminal control, `quiz_engine.py` manages question sequencing and scoring, and `file_handler.py` handles JSON processing. As a result, the two refactoring efforts undertaken were confined to single modules, with no ripple effects on the calling code.
+Each module has one job: `main.py` orchestrates, `ui.py` handles terminal I/O, `quiz_engine.py` handles ordering and scoring, and `file_handler.py` handles JSON. As a result, both refactors so far were confined to a single module, with no ripple effects on callers.
 
 ## Technical Challenges and Solutions
 
 ### Challenge 1: Terminating Adaptive Mode
 
-**Issue:** The process of "re-queuing incorrect answers" lacks a natural termination condition.
-**Solution:** Implement a "maximum retry count" (`max_retries`) limit for each card. **AI Involvement:** Claude initially wrote code lacking a termination condition (creating an infinite loop); however, when asked if the process would terminate, it proposed a fix. **Lesson:** Always verify that any AI-generated retry logic guarantees loop termination.
+**Issue:** "Re-queuing incorrect answers" has no natural end condition.
+**Solution:** A `max_retries` limit per card. **AI Involvement:** Claude wrote the unbounded version first; asked whether it would terminate, it proposed the fix. **Lesson:** Verify any AI-generated retry logic actually terminates.
 
 ### Challenge 2: Defining Scoring for Retries
 
-**Issue:** Allowing cards to appear multiple times makes the definition of "accuracy" ambiguous.
-**Solution:** Use a `_seen` set to ensure only the "initial attempt" for each card counts toward the score. While retries trigger re-queuing, they do not affect score aggregation. **AI Involvement:** When the ambiguity was pointed out, Claude presented several implementation options. **Lesson:** Since tests might pass regardless of the chosen implementation, resolve behavioral ambiguities before writing the test code.
+**Issue:** Once a card can appear twice, "accuracy" is ambiguous.
+**Solution:** A `_seen` set scores only each card's first attempt; retries still requeue but don't affect the tally. **AI Involvement:** Claude offered several options once the ambiguity was raised. **Lesson:** Resolve behavioral ambiguity before writing tests—either version can pass.
 
 ## Code Quality Analysis
 
@@ -101,8 +101,8 @@ clear naming conventions, comprehensive docstrings, and no functions exceeding 2
 - **Code Maintainability: 5** — Adding a mode requires only one new class and a single-line addition to the registry;
 the adopted patterns are central to the design, not merely decorative.
 - **Test Quality: 4** — Thorough coverage of edge cases and error paths;
-design utilizes callable injection, allowing verification of actual behavior rather than relying on mocks.
-Reason for not scoring a 5: One test directly accesses the private attribute `_queue`.
+the injected-callable design lets tests assert real behavior rather than mocks.
+Not a 5: one test reaches into the private `_queue` attribute.
 - **Documentation: 5** — README includes usage examples; detailed AI logs;
 coverage reports; docstrings provided for all public interfaces.
 
@@ -110,33 +110,33 @@ coverage reports; docstrings provided for all public interfaces.
 
 ### Technical Skills Acquired
 
-By implementing patterns like Strategy and Factory in scenarios where they were required, I gained clarity on when the added complexity of introducing such patterns is justified. I also learned to treat `mypy` not merely as a linter but as a design tool. The type errors related to the Factory pattern that `mypy` flagged revealed issues—signature mismatches. Correcting the types rather than ignoring the errors led to the design of more consistent interfaces.
+Implementing Strategy and Factory where they were actually needed clarified when that complexity is justified. I also learned to treat `mypy` as a design tool, not just a linter: the Factory type error it flagged was a real signature mismatch, and fixing it produced a more honest interface.
 
 ### Skills in Collaborating with AI
 
-The most valuable practice I adopted was specifying "failure modes" in my prompts and then verifying the generated output against perspectives not covered by the prompt itself (such as "Is this process guaranteed to terminate?"). I discovered more bugs by scrutinizing what I *hadn't* specified than by verifying what I *had* requested.
+The most valuable habit was specifying failure modes in prompts, then interrogating the result with questions the prompt didn't cover (such as "does this terminate?"). Reviewing what I *hadn't* specified caught more bugs than reviewing what I had.
 
 ### Insights into Software Engineering
 
-Applying the principle of "separation of concerns" yielded results; the necessary modifications for this task could all be completed by altering just a single module. I also gained an appreciation for the fact that the effectiveness of quality gates depends on their configuration. Relaxing type checks for the `tests/` directory meant that the code there fell outside the scope of the quality gate, resulting in defects being overlooked.
+Separation of concerns paid off concretely: every fix in this project was a one-module change. And a quality gate is only as strong as its configuration — relaxing type checks for `tests/` moved that code outside the gate and hid a real defect.
 
 ## Retrospective
 
 ### What Went Well
 
-I employed a step-by-step prompting strategy that accounted for common failure patterns, and I treated "running without crashing" as a lower hurdle than "passing code review." I am pleased with the "callable injection" design used in `QuizEngine.run()`; this made testing the app's most difficult-to-test component easy.
+Step-by-step prompting that accounted for failure patterns, and treating "running without crashing" as a lower bar than "passing review." I'm most pleased with the callable-injection design in `QuizEngine.run()` — it made the hardest-to-test part of the app trivial to test.
 
 ### Areas for Improvement
 
-I should have designed the system with Dependency Injection (DI) from the start rather than refactoring to introduce it later. Regarding quality assurance tools, I should have run them with the strictest settings from the first commit, rather than discovering later that issues had been overlooked due to loose configurations.
+I should have designed in Dependency Injection from the start instead of refactoring it in later, and run the quality tools at full strictness from the first commit instead of discovering a relaxed setting had hidden a defect.
 
 ### Planned Future Extensions
 
-I am considering adding a "spaced-repetition" mode to maintain intervals across sessions, a `--seed` flag to make random mode behavior reproducible, and per-card history tracking (which will enable adaptive mode to prioritize cards based on data spanning multiple sessions, rather than just within a single session).
+A spaced-repetition mode with intervals persisted across sessions, a `--seed` flag for reproducible Random mode, and per-card history so Adaptive mode can prioritize across sessions, not just within one.
 
 ## Conclusion
 
-A turning point was shifting from treating AI output as a "finished answer requiring only partial verification" to viewing it as a "draft requiring critical scrutiny." By asking questions such as "What if X never succeeds?", "What are the implications if Y repeats?", and "Does this pattern fit every scenario?", I was able to uncover three flaws that might otherwise have been overlooked—flaws that existed even though the program functioned correctly and passed all tests. I intend to maintain this habit of verifying details beyond the specifications in future work, regardless of whether AI generates the draft.
+The key shift was treating AI output as a draft to interrogate, not a finished answer to spot-check. Asking "what if X never succeeds," "what happens when Y repeats," and "does this fit every case" surfaced three real flaws that "it runs and passes tests" would not have caught. I'll carry that habit — reviewing for the unspecified — into future work, AI-drafted or not.
 
 ## Appendix
 
@@ -146,8 +146,8 @@ A turning point was shifting from treating AI output as a "finished answer requi
 
 ### Appendix B: Code Statistics
 
-`docs/coverage_report.md` — Overall coverage output, per-file breakdown, and explanations for uncovered lines. The HTML report is located at `htmlcov/index.html`, and the prompt history is in `prompts.md`.
+`docs/coverage_report.md` — coverage output, per-file breakdown, explanations for uncovered lines. HTML report: `htmlcov/index.html`. Prompt history: `prompts.md`.
 
 ### Appendix C: Additional Resources
 
-`ai_guidance/prompting_best_practices.md` and `ai_guidance/code_review_checklist.md` (used during reviews), `docs/design_patterns.md`, and documentation regarding Python's `abc`, `argparse`, and `dataclasses` modules.
+`ai_guidance/prompting_best_practices.md`, `ai_guidance/code_review_checklist.md`, `docs/design_patterns.md`, and Python's `abc`, `argparse`, `dataclasses` docs.
